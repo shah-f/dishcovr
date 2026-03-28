@@ -197,7 +197,8 @@ function assertServerOnly(): void {
 }
 
 function getFoursquareApiKey(providedApiKey?: string): string {
-  const apiKey = providedApiKey ?? process.env.FOURSQUARE_API_KEY ?? process.env.FSQ_API_KEY;
+  const rawApiKey = providedApiKey ?? process.env.FOURSQUARE_API_KEY ?? process.env.FSQ_API_KEY;
+  const apiKey = typeof rawApiKey === "string" ? rawApiKey.trim() : "";
 
   if (!apiKey) {
     throw new Error("Missing FOURSQUARE_API_KEY. Add it to .env.local on the server.");
@@ -792,7 +793,41 @@ async function foursquareGetJson<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Foursquare request failed with status ${response.status}.`);
+    const responseText = await response.text().catch(() => "");
+    let upstreamMessage = "";
+
+    try {
+      const parsedBody = JSON.parse(responseText);
+      if (parsedBody && typeof parsedBody === "object") {
+        if (typeof parsedBody.message === "string") {
+          upstreamMessage = parsedBody.message;
+        } else if (typeof parsedBody.error === "string") {
+          upstreamMessage = parsedBody.error;
+        }
+      }
+    } catch {
+      upstreamMessage = responseText.trim();
+    }
+
+    if (response.status === 401) {
+      throw new Error(
+        [
+          "Foursquare rejected the API key (401).",
+          "Make sure this is a Places API key from the Foursquare Developer Console,",
+          "that you accepted the current developer terms there,",
+          "that the full key is in .env.local as FOURSQUARE_API_KEY,",
+          "and that you restarted npm run dev after editing the env file.",
+          upstreamMessage ? `Foursquare said: ${upstreamMessage}` : "",
+        ].filter(Boolean).join(" "),
+      );
+    }
+
+    throw new Error(
+      [
+        `Foursquare request failed with status ${response.status}.`,
+        upstreamMessage ? `Foursquare said: ${upstreamMessage}` : "",
+      ].filter(Boolean).join(" "),
+    );
   }
 
   return response.json() as Promise<T>;

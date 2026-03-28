@@ -25,6 +25,7 @@ Then edit `.env.local` and add your real key:
 ```bash
 GEMINI_API_KEY=your_real_key_here
 FOURSQUARE_API_KEY=your_real_foursquare_key_here
+PEXELS_API_KEY=your_real_pexels_key_here
 ```
 
 Important rules:
@@ -34,6 +35,7 @@ Important rules:
 - only call Gemini from a backend route, server action, or other server-only function
 - never send the API key to the browser
 - keep the Foursquare API key server-side too
+- keep the Pexels API key server-side too
 
 ## Run the lightweight app
 
@@ -50,6 +52,39 @@ http://localhost:3000
 ```
 
 The frontend is a tiny React page served from `public/`, and the backend upload endpoint is `POST /api/parse-menu`.
+
+The upload UI now supports multiple menu pages at once and turns the parsed dishes into image cards using Wikipedia first and Pexels as a stricter fallback when possible.
+
+## Dish Images API
+
+There is now a backend route for generic dish images:
+
+```bash
+POST /api/dish-images
+```
+
+Request body:
+
+```json
+{
+  "items": [
+    {
+      "nameOriginal": "CALAMARES",
+      "nameEnglish": "Translated: Squid",
+      "price": "8,50",
+      "description": "Tender squid, often lightly fried and served as a savory seafood starter."
+    }
+  ]
+}
+```
+
+This route:
+
+- searches Wikipedia first for a dish page with a lead thumbnail
+- falls back to Pexels when Wikipedia does not return a believable image
+- uses Gemini only as light server-side query help / image validation when available
+- returns one image per recognizable dish when possible
+- includes attribution metadata for the frontend
 
 ## Popular Dishes API
 
@@ -88,6 +123,31 @@ It works in two layers:
 
 - heuristic matching first for dish aliases, mention counts, and positive/negative review language
 - optional Gemini refinement second to sanity-check the top candidates and ambiguous matches when `GEMINI_API_KEY` is available
+
+Quick test with `curl`:
+
+```bash
+curl -X POST http://localhost:3000/api/popular-dishes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "restaurantName": "Casa Galicia",
+    "near": "New York, NY",
+    "menuItems": [
+      {
+        "nameOriginal": "CALAMARES",
+        "nameEnglish": "Translated: Squid",
+        "price": "8,50",
+        "description": "Fried squid rings, often served as a tapa."
+      },
+      {
+        "nameOriginal": "GAMBAS",
+        "nameEnglish": "Translated: Garlic Prawns",
+        "price": "10,50",
+        "description": "Prawns sauteed with garlic and olive oil."
+      }
+    ]
+  }'
+```
 
 ## Current parser helper
 

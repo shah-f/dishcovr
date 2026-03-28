@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
+import { findDishImages } from "./dishImages.ts";
 import { parseMenuImageBytes } from "./menuParser.ts";
 import { findPopularDishesFromFoursquare } from "./popularDishes.ts";
 
@@ -14,17 +15,33 @@ const publicDir = path.join(__dirname, "public");
 const host = process.env.HOST ?? "127.0.0.1";
 const port = Number(process.env.PORT ?? 3000);
 
-const parseMenuRequestSchema = z.object({
+const singleParseMenuRequestSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   imageBase64: z.string().min(1),
 });
+
+const parseMenuRequestSchema = z.union([
+  singleParseMenuRequestSchema,
+  z.object({
+    images: z.array(singleParseMenuRequestSchema).min(1),
+  }),
+]);
 
 const popularDishesRequestSchema = z.object({
   restaurantName: z.string().min(1),
   near: z.string().min(1).optional(),
   ll: z.string().regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/).optional(),
   menuItems: z.array(z.object({
+    nameOriginal: z.string().min(1),
+    nameEnglish: z.string().nullable().optional(),
+    price: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+  })).min(1),
+});
+
+const dishImagesRequestSchema = z.object({
+  items: z.array(z.object({
     nameOriginal: z.string().min(1),
     nameEnglish: z.string().nullable().optional(),
     price: z.string().nullable().optional(),
@@ -50,6 +67,11 @@ function sendJson(
     "cache-control": "no-store",
   });
   response.end(JSON.stringify(body));
+}
+
+export function normalizeParseMenuUploads(body: unknown) {
+  const parsedBody = parseMenuRequestSchema.parse(body);
+  return "images" in parsedBody ? parsedBody.images : [parsedBody];
 }
 
 async function readJsonBody(
@@ -86,15 +108,26 @@ async function handleParseMenu(
 
   try {
     const body = await readJsonBody(request);
-    const { imageBase64, mimeType, filename } = parseMenuRequestSchema.parse(body);
+    const uploads = normalizeParseMenuUploads(body);
+    const parsedImages = await Promise.all(uploads.map(async ({ imageBase64, mimeType, filename }) => {
+      const items = await parseMenuImageBytes({
+        bytes: Buffer.from(imageBase64, "base64"),
+        mimeType,
+      });
 
-    const items = await parseMenuImageBytes({
-      bytes: Buffer.from(imageBase64, "base64"),
-      mimeType,
-    });
+      return {
+        filename,
+        mimeType,
+        itemCount: items.length,
+        items,
+      };
+    }));
+    const items = parsedImages.flatMap((parsedImage) => parsedImage.items);
 
     sendJson(response, 200, {
-      filename,
+      filename: parsedImages.length === 1 ? parsedImages[0].filename : null,
+      imageCount: parsedImages.length,
+      images: parsedImages,
       items,
     });
   } catch (error) {
@@ -163,6 +196,60 @@ async function handlePopularDishes(
   }
 }
 
+async function handleDishImages(
+  request: import("node:http").IncomingMessage,
+  response: import("node:http").ServerResponse,
+): Promise<void> {
+  if (request.method !== "POST") {
+    response.setHeader("allow", "POST");
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  try {
+    const body = await readJsonBody(request);
+    const parsedBody = dishImagesRequestSchema.parse(body);
+    const items = parsedBody.items.map((item) => ({
+      nameOriginal: item.nameOriginal,
+      nameEnglish: item.nameEnglish ?? null,
+      price: item.price ?? null,
+      description: item.description ?? null,
+    }));
+    const matches = await findDishImages(items);
+    const sources = [...new Set(matches.map((match) => match.source).filter((source) => source !== "none"))];
+    const sourceCounts = {
+      wikimedia: matches.filter((match) => match.source === "wikimedia").length,
+      pexels: matches.filter((match) => match.source === "pexels").length,
+      none: matches.filter((match) => match.source === "none").length,
+    };
+
+    sendJson(response, 200, {
+      provider: sources.length === 1 ? sources[0] : "mixed",
+      itemCount: items.length,
+      matchedCount: matches.filter((match) => match.image !== null).length,
+      sourceCounts,
+      items: matches,
+      attribution: {
+        text: "Images may come from Wikipedia or Pexels",
+        url: "https://www.pexels.com",
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      sendJson(response, 400, {
+        error: "Invalid request body.",
+        details: error.flatten(),
+      });
+      return;
+    }
+
+    const message = error instanceof Error ? error.message : "Unknown server error.";
+    sendJson(response, 500, {
+      error: message,
+    });
+  }
+}
+
 async function serveStaticAsset(
   requestPath: string,
   response: import("node:http").ServerResponse,
@@ -201,6 +288,11 @@ export function createAppServer() {
 
     if (requestUrl.pathname === "/api/popular-dishes") {
       await handlePopularDishes(request, response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/dish-images") {
+      await handleDishImages(request, response);
       return;
     }
 

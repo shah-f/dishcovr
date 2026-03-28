@@ -90,9 +90,20 @@
         letter-spacing: 0.02em;
       }
 
+      .panel h3 {
+        margin: 0 0 12px;
+        font-size: 0.95rem;
+        letter-spacing: 0.01em;
+      }
+
       .upload-box {
         display: grid;
         gap: 16px;
+      }
+
+      .visual-panel {
+        display: grid;
+        gap: 18px;
       }
 
       .dropzone {
@@ -125,6 +136,35 @@
         margin-bottom: 8px;
         color: var(--ink);
         font-size: 1.1rem;
+      }
+
+      .multi-selection {
+        width: 100%;
+        display: grid;
+        gap: 16px;
+      }
+
+      .thumb-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .thumb {
+        width: 100%;
+        aspect-ratio: 4 / 5;
+        border-radius: 14px;
+        object-fit: cover;
+        background: #fff;
+      }
+
+      .file-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+        text-align: left;
       }
 
       .preview {
@@ -188,6 +228,143 @@
         font-size: 0.92rem;
       }
 
+      .menu-card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .menu-card {
+        overflow: hidden;
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 239, 228, 0.96));
+        border: 1px solid rgba(83, 50, 27, 0.12);
+        box-shadow: 0 12px 28px rgba(91, 57, 36, 0.09);
+      }
+
+      .menu-card-image-shell,
+      .menu-card-placeholder {
+        aspect-ratio: 4 / 3;
+        background: linear-gradient(180deg, #ead9c8, #f4e9dd);
+      }
+
+      .menu-card-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .menu-card-placeholder {
+        display: grid;
+        place-items: center;
+      }
+
+      .menu-card-placeholder span {
+        width: 72px;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.62);
+        color: var(--accent-strong);
+        font-size: 1.8rem;
+        font-weight: 800;
+      }
+
+      .menu-card-body {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+      }
+
+      .menu-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .menu-card-header h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        line-height: 1.25;
+      }
+
+      .menu-card-subtitle {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .price-pill {
+        flex-shrink: 0;
+        padding: 8px 11px;
+        border-radius: 999px;
+        background: rgba(214, 107, 44, 0.12);
+        color: var(--accent-strong);
+        font-size: 0.9rem;
+        font-weight: 800;
+      }
+
+      .menu-card-description {
+        margin: 0;
+        color: var(--ink);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      .photo-credit,
+      .pexels-credit a {
+        color: var(--accent-strong);
+        font-size: 0.88rem;
+        text-decoration: none;
+      }
+
+      .photo-credit:hover,
+      .pexels-credit a:hover {
+        text-decoration: underline;
+      }
+
+      .muted-credit {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .empty-menu-state {
+        display: grid;
+        gap: 8px;
+        padding: 20px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 239, 228, 0.9));
+        border: 1px solid rgba(83, 50, 27, 0.12);
+      }
+
+      .empty-menu-state span {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .pexels-credit {
+        margin: 0;
+      }
+
+      .debug-block {
+        border-top: 1px solid rgba(83, 50, 27, 0.12);
+        padding-top: 14px;
+      }
+
+      .debug-block summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .compact-pre {
+        margin-top: 12px;
+        min-height: 0;
+        max-height: 360px;
+      }
+
       pre {
         margin: 0;
         min-height: 380px;
@@ -204,6 +381,14 @@
       @media (max-width: 860px) {
         .grid {
           grid-template-columns: 1fr;
+        }
+
+        .menu-card-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .thumb-row {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .shell {
