@@ -13,7 +13,7 @@ import { findPopularDishesFromFoursquare } from "./popularDishes.ts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, "public");
-const host = process.env.HOST ?? "127.0.0.1";
+const host = process.env.HOST ?? (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const port = Number(process.env.PORT ?? 3000);
 
 const singleParseMenuRequestSchema = z.object({
