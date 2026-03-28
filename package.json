@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file=.env.local --experimental-strip-types server.ts",
+    "start": "node --env-file=.env.local --experimental-strip-types server.ts",
+    "test": "node --experimental-strip-types --test test/menuParser.test.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^1.46.0",
+    "zod": "^4.3.6"
+  }
+}
