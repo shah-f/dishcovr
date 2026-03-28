@@ -5,6 +5,7 @@ export type ParsedMenuItem = {
   nameEnglish: string | null;
   price: string | null;
   description: string | null;
+  allergens: string[] | null;
 };
 
 export type SupportedMenuImageMimeType = "image/jpeg" | "image/png" | "image/webp";
@@ -62,6 +63,7 @@ For each item, return:
   - if the menu description is in another language, translate it to English and return it in this exact format: "Translated: {English translation}"
   - if the menu description is missing, generate a short one-line English description based on the dish name and common preparation
   - if the menu description exists but is sparse, awkward, vague, or confusing, rewrite it into a clearer one-line English description
+- allergens: an array of allergen strings ONLY if the menu explicitly states them for that item (e.g. "contains nuts", "GF", "V", allergen icons with labels, etc). Return null if the menu does not explicitly call out allergens for this item. Do NOT infer allergens from ingredients — only report what is visibly stated on the menu.
 
 Important rules:
 - Return ONLY actual menu items, not section headers.
@@ -77,6 +79,7 @@ Important rules:
 - If an item is duplicated, include it only once unless it clearly appears as separate menu entries.
 - If text is unclear, do your best but do not hallucinate details.
 - If translation is uncertain, prefer null over guessing.
+- For allergens, only include what is explicitly printed on the menu. Never guess or infer.
 - Return JSON only.
 `.trim();
 
@@ -171,18 +174,25 @@ async function defaultGenerateMenuContent({
             nameEnglish: { type: Type.STRING, nullable: true },
             price: { type: Type.STRING, nullable: true },
             description: { type: Type.STRING, nullable: true },
+            allergens: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              nullable: true,
+            },
           },
           required: [
             "nameOriginal",
             "nameEnglish",
             "price",
             "description",
+            "allergens",
           ],
           propertyOrdering: [
             "nameOriginal",
             "nameEnglish",
             "price",
             "description",
+            "allergens",
           ],
         },
       },
@@ -272,6 +282,19 @@ function normalizeOptionalString(value: string | null | undefined): string | nul
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeAllergens(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+
+  const cleaned = value
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 function formatTranslatedName(nameEnglish: string | null): string | null {
   const normalizedName = normalizeOptionalString(nameEnglish);
 
@@ -306,6 +329,7 @@ function normalizeParsedMenuItem(item: ParsedMenuItem): ParsedMenuItem {
     nameEnglish: formatTranslatedName(item.nameEnglish),
     price: normalizeOptionalString(item.price),
     description: formatFinalDescription(item.description),
+    allergens: normalizeAllergens(item.allergens),
   };
 }
 

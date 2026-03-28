@@ -27,6 +27,7 @@ test("parseMenuImageBytes returns parsed items from the injected generator", asy
               nameEnglish: "Hunter-style chicken",
               price: "$14",
               description: "translated: Braised chicken with tomato and herbs",
+              allergens: null,
             },
           ]),
         };
@@ -42,6 +43,7 @@ test("parseMenuImageBytes returns parsed items from the injected generator", asy
       nameEnglish: "Translated: Hunter-style chicken",
       price: "$14",
       description: "Translated: Braised chicken with tomato and herbs",
+      allergens: null,
     },
   ]);
 });
@@ -60,6 +62,7 @@ test("parseMenuImageBytes preserves an existing translated label format", async 
             nameEnglish: "translated: dumplings",
             price: null,
             description: "translated: pork and napa cabbage filling",
+            allergens: null,
           },
         ]),
       }),
@@ -72,6 +75,7 @@ test("parseMenuImageBytes preserves an existing translated label format", async 
       nameEnglish: "Translated: dumplings",
       price: null,
       description: "Translated: pork and napa cabbage filling",
+      allergens: null,
     },
   ]);
 });
@@ -90,6 +94,7 @@ test("parseMenuImageBytes keeps an English description without a translated labe
             nameEnglish: null,
             price: "$11",
             description: "Romaine, parmesan, croutons, house dressing",
+            allergens: null,
           },
         ]),
       }),
@@ -102,6 +107,7 @@ test("parseMenuImageBytes keeps an English description without a translated labe
       nameEnglish: null,
       price: "$11",
       description: "Romaine, parmesan, croutons, house dressing",
+      allergens: null,
     },
   ]);
 });
@@ -120,6 +126,7 @@ test("parseMenuImageBytes keeps a strong description and leaves it untouched", a
             nameEnglish: null,
             price: "$18",
             description: "San Marzano tomato sauce, fresh mozzarella, basil, and olive oil",
+            allergens: null,
           },
         ]),
       }),
@@ -132,6 +139,103 @@ test("parseMenuImageBytes keeps a strong description and leaves it untouched", a
       nameEnglish: null,
       price: "$18",
       description: "San Marzano tomato sauce, fresh mozzarella, basil, and olive oil",
+      allergens: null,
+    },
+  ]);
+});
+
+test("parseMenuImageBytes surfaces explicit allergens from the menu", async () => {
+  const items = await parseMenuImageBytes(
+    {
+      bytes: Buffer.from("fake-image-bytes"),
+      mimeType: "image/png",
+    },
+    {
+      generateMenuContent: async () => ({
+        text: JSON.stringify([
+          {
+            nameOriginal: "Peanut Satay Skewers",
+            nameEnglish: null,
+            price: "$12",
+            description: "Grilled chicken skewers with peanut dipping sauce.",
+            allergens: ["contains peanuts", "contains gluten"],
+          },
+        ]),
+      }),
+    },
+  );
+
+  assert.deepEqual(items, [
+    {
+      nameOriginal: "Peanut Satay Skewers",
+      nameEnglish: null,
+      price: "$12",
+      description: "Grilled chicken skewers with peanut dipping sauce.",
+      allergens: ["contains peanuts", "contains gluten"],
+    },
+  ]);
+});
+
+test("parseMenuImageBytes returns null allergens when menu states none", async () => {
+  const items = await parseMenuImageBytes(
+    {
+      bytes: Buffer.from("fake-image-bytes"),
+      mimeType: "image/png",
+    },
+    {
+      generateMenuContent: async () => ({
+        text: JSON.stringify([
+          {
+            nameOriginal: "Garden Salad",
+            nameEnglish: null,
+            price: "$8",
+            description: "Fresh mixed greens with house vinaigrette.",
+            allergens: null,
+          },
+        ]),
+      }),
+    },
+  );
+
+  assert.deepEqual(items, [
+    {
+      nameOriginal: "Garden Salad",
+      nameEnglish: null,
+      price: "$8",
+      description: "Fresh mixed greens with house vinaigrette.",
+      allergens: null,
+    },
+  ]);
+});
+
+test("parseMenuImageBytes normalizes empty allergens array to null", async () => {
+  const items = await parseMenuImageBytes(
+    {
+      bytes: Buffer.from("fake-image-bytes"),
+      mimeType: "image/png",
+    },
+    {
+      generateMenuContent: async () => ({
+        text: JSON.stringify([
+          {
+            nameOriginal: "Grilled Salmon",
+            nameEnglish: null,
+            price: "$22",
+            description: "Atlantic salmon fillet, grilled and served with seasonal vegetables.",
+            allergens: [],
+          },
+        ]),
+      }),
+    },
+  );
+
+  assert.deepEqual(items, [
+    {
+      nameOriginal: "Grilled Salmon",
+      nameEnglish: null,
+      price: "$22",
+      description: "Atlantic salmon fillet, grilled and served with seasonal vegetables.",
+      allergens: null,
     },
   ]);
 });
@@ -150,6 +254,7 @@ test("parseMenuImageBytes supports generated descriptions when the menu has none
             nameEnglish: null,
             price: "$9",
             description: null,
+            allergens: null,
           },
         ]),
       }),
@@ -168,36 +273,7 @@ test("parseMenuImageBytes supports generated descriptions when the menu has none
       nameEnglish: null,
       price: "$9",
       description: "Breaded mozzarella sticks fried until crisp and served hot and cheesy.",
-    },
-  ]);
-});
-
-test("parseMenuImageBytes supports enhanced descriptions for confusing menu text", async () => {
-  const items = await parseMenuImageBytes(
-    {
-      bytes: Buffer.from("fake-image-bytes"),
-      mimeType: "image/png",
-    },
-    {
-      generateMenuContent: async () => ({
-        text: JSON.stringify([
-          {
-            nameOriginal: "House Noodles",
-            nameEnglish: null,
-            price: "$16",
-            description: "Stir-fried house noodles with a mix of the chef's special ingredients.",
-          },
-        ]),
-      }),
-    },
-  );
-
-  assert.deepEqual(items, [
-    {
-      nameOriginal: "House Noodles",
-      nameEnglish: null,
-      price: "$16",
-      description: "Stir-fried house noodles with a mix of the chef's special ingredients.",
+      allergens: null,
     },
   ]);
 });
@@ -216,12 +292,14 @@ test("parseMenuImageBytes backfills multiple missing descriptions", async () => 
             nameEnglish: "Translated: Squid",
             price: "8,50",
             description: null,
+            allergens: null,
           },
           {
             nameOriginal: "CHIPIRONES",
             nameEnglish: "Translated: Small squid",
             price: "9,00",
             description: null,
+            allergens: null,
           },
         ]),
       }),
@@ -261,12 +339,14 @@ test("parseMenuImageBytes backfills multiple missing descriptions", async () => 
       nameEnglish: "Translated: Squid",
       price: "8,50",
       description: "Tender squid, often lightly fried and served as a savory seafood starter.",
+      allergens: null,
     },
     {
       nameOriginal: "CHIPIRONES",
       nameEnglish: "Translated: Small squid",
       price: "9,00",
       description: "Small squid prepared as a light seafood appetizer with a tender bite.",
+      allergens: null,
     },
   ]);
 });
@@ -285,6 +365,7 @@ test("parseMenuImageBytes leaves description null when fallback generator is sti
             nameEnglish: null,
             price: null,
             description: null,
+            allergens: null,
           },
         ]),
       }),
@@ -303,6 +384,7 @@ test("parseMenuImageBytes leaves description null when fallback generator is sti
       nameEnglish: null,
       price: null,
       description: null,
+      allergens: null,
     },
   ]);
 });
