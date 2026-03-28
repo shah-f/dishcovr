@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { parseMenuImageBytes } from "./menuParser.ts";
+import { findPopularDishesFromFoursquare } from "./popularDishes.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,18 @@ const parseMenuRequestSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   imageBase64: z.string().min(1),
+});
+
+const popularDishesRequestSchema = z.object({
+  restaurantName: z.string().min(1),
+  near: z.string().min(1).optional(),
+  ll: z.string().regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/).optional(),
+  menuItems: z.array(z.object({
+    nameOriginal: z.string().min(1),
+    nameEnglish: z.string().nullable().optional(),
+    price: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+  })).min(1),
 });
 
 const staticContentTypes = new Map<string, string>([
@@ -107,6 +120,49 @@ async function handleParseMenu(
   }
 }
 
+async function handlePopularDishes(
+  request: import("node:http").IncomingMessage,
+  response: import("node:http").ServerResponse,
+): Promise<void> {
+  if (request.method !== "POST") {
+    response.setHeader("allow", "POST");
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  try {
+    const body = await readJsonBody(request);
+    const parsedBody = popularDishesRequestSchema.parse(body);
+
+    const result = await findPopularDishesFromFoursquare({
+      restaurantName: parsedBody.restaurantName,
+      near: parsedBody.near,
+      ll: parsedBody.ll,
+      menuItems: parsedBody.menuItems.map((menuItem) => ({
+        nameOriginal: menuItem.nameOriginal,
+        nameEnglish: menuItem.nameEnglish ?? null,
+        price: menuItem.price ?? null,
+        description: menuItem.description ?? null,
+      })),
+    });
+
+    sendJson(response, 200, result);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      sendJson(response, 400, {
+        error: "Invalid request body.",
+        details: error.flatten(),
+      });
+      return;
+    }
+
+    const message = error instanceof Error ? error.message : "Unknown server error.";
+    sendJson(response, 500, {
+      error: message,
+    });
+  }
+}
+
 async function serveStaticAsset(
   requestPath: string,
   response: import("node:http").ServerResponse,
@@ -140,6 +196,11 @@ export function createAppServer() {
 
     if (requestUrl.pathname === "/api/parse-menu") {
       await handleParseMenu(request, response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/popular-dishes") {
+      await handlePopularDishes(request, response);
       return;
     }
 
