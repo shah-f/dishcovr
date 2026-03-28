@@ -99,6 +99,21 @@ function EmptyMenuState({ title, body }) {
   `;
 }
 
+function AllergenBadges({ allergens }) {
+  if (!allergens || allergens.length === 0) {
+    return null;
+  }
+
+  return html`
+    <div className="allergen-row">
+      <span className="allergen-label">⚠️ Contains:</span>
+      ${allergens.map((allergen) => html`
+        <span key=${allergen} className="allergen-badge">${allergen}</span>
+      `)}
+    </div>
+  `;
+}
+
 function MenuCard({ item, imageMatch }) {
   const displayName = buildDisplayName(item);
   const secondaryName = buildSecondaryName(item);
@@ -143,6 +158,8 @@ function MenuCard({ item, imageMatch }) {
         <p className="menu-card-description">
           ${item.description || "No description available yet."}
         </p>
+
+        <${AllergenBadges} allergens=${item.allergens} />
 
         ${
           image
