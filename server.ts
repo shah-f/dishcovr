@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
+import { cartSpeechRequestSchema, generateCartSpeech } from "./cartSpeech.ts";
 import { findDishImages } from "./dishImages.ts";
 import { parseMenuImageBytes } from "./menuParser.ts";
 import { findPopularDishesFromFoursquare } from "./popularDishes.ts";
@@ -382,6 +383,41 @@ async function handleDishImages(
   }
 }
 
+async function handleCartSpeech(
+  request: import("node:http").IncomingMessage,
+  response: import("node:http").ServerResponse,
+): Promise<void> {
+  if (request.method !== "POST") {
+    response.setHeader("allow", "POST");
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  try {
+    const body = await readJsonBody(request);
+    const parsedBody = cartSpeechRequestSchema.parse(body);
+    const speech = await generateCartSpeech(parsedBody);
+
+    sendJson(response, 200, speech);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      sendJson(response, 400, {
+        error: "Invalid request body.",
+        details: error.flatten(),
+      });
+      return;
+    }
+
+    if (error instanceof SyntaxError) {
+      sendJson(response, 400, { error: "Request body must be valid JSON." });
+      return;
+    }
+
+    const message = error instanceof Error ? error.message : "Unknown server error.";
+    sendJson(response, 500, { error: message });
+  }
+}
+
 async function serveStaticAsset(
   requestPath: string,
   response: import("node:http").ServerResponse,
@@ -430,6 +466,11 @@ export function createAppServer() {
 
     if (requestUrl.pathname === "/api/dish-info") {
       await handleDishInfo(request, response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/cart-speech") {
+      await handleCartSpeech(request, response);
       return;
     }
 
