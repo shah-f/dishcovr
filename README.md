@@ -1,4 +1,4 @@
-# tobenamed
+# dishcover
 
 Base: Upload a pic of the menu, get an imagified menu in return with a short description of the food
 
